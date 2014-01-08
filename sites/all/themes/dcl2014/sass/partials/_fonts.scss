@@ -1,0 +1,41 @@
+h1,h2,h3,h4,h5,h6 {
+  font-family: 'Ranchers';
+  font-weight: 100;
+  letter-spacing: 1px;
+}
+
+h1, h2.pane-title {
+  font-size:45px;
+  color:#2b93cd;
+}
+h2 {
+  font-size:40px;
+}
+h3 {
+  font-size:25px;
+}
+h4 {
+  font-size:20px;
+}
+
+p {
+  a {
+    color:#fff;
+    background-color:#b1529c;
+    padding:5px;
+  }
+}
+
+* {
+  //font-family: 'Oswald'; font-weight: 300;
+
+  font-family: 'Open Sans'; font-weight: 300;
+}
+
+fieldset {
+  padding:0;
+  background-color:#fff;
+  border:0;
+}
+
+//$bodyfont: 'Oswald';
