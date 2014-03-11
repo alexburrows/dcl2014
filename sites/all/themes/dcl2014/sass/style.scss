@@ -1,3 +1,13 @@
 // Core items
 @import 'partials/_fonts.scss';
-@import 'partials/_desktop-layout.scss';
+@import 'partials/_mixins.scss';
+
+@media screen and (min-width: 600px) {
+  @import 'partials/_desktop-layout.scss';
+}
+
+@media screen and (max-width: 600px) {
+  @import 'partials/_mobile_layout.scss';
+}
+
+@import 'partials/_global.scss';

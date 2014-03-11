@@ -21,6 +21,15 @@
 <div id="bodycontent">
    <?php print $content['content']; ?>
 </div>
-<footer id="footer" class="inner">
-   <?php print $content['footer']; ?>
+<footer id="footer">
+  <div class="inner">
+  <div id="footer-left">
+    <p>Copyright © 2014 Drupalcamp London</p>
+    <p>Drupal is a&nbsp;<a href="http://drupal.com/trademark" target="_blank">registered trademark</a>&nbsp;of&nbsp;<a href="http://buytaert.net/" style="color: rgb(1, 204, 255); text-decoration: none;" target="_blank">Dries Buytaert</a>.<br />
+    Built using <a href="http://drupal.org/project/cod">COD</a> on Drupal - <a href="/credits">Credits</a></p>
+
+  </div>
+  <div id="footer-right"><a id="hosting" href="http://www.aberdeencloud.com">Hosting by Aberdeen Cloud</a></div>
+  </div>
+  <div style="clear:both;"></div>
 </footer>

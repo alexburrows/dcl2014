@@ -1,0 +1,29 @@
+<?php
+
+/**
+ * Implements hook_init().
+ */
+function dcl2014_amends_init() {
+  if (user_is_anonymous() && (current_path() == 'node/add/session' || current_path() == 'node/add/bof-session') ) {
+    drupal_goto('user');
+  }
+  if (current_path() == 'user' && user_is_anonymous()) {
+    drupal_set_message(t('Please login or <a href="/user/register">sign up</a> in order to submit a bof session'));
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function dcl2014_amends_form_alter(&$form, &$form_state, $form_id) {
+  switch ($form_id) {
+    case 'user_register_form':
+      unset($form['field_name_first']);
+      unset($form['field_name_last']);
+      break;
+    case 'session_node_form':
+      $form['og_group_ref']['und'][0]['default']['#default_value'] = '1';
+      break;
+  }
+  //print $form_id;
+}

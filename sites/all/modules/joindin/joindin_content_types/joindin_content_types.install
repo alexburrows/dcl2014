@@ -1,0 +1,127 @@
+<?php
+/**
+ * @file
+ * Install file for the joindin_content_types module
+ *
+ * Sets default variables
+ * Creates talk and event node types
+ * Creates the vocabulary to add the joind.in tags
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * Defines custom node and field types
+ */
+function joindin_content_types_install() {
+  // During installation, the t() function is unavailable, so we use get_t()
+  // to store the name of the translation function.
+  $t = get_t();
+
+  // Create the vocabulary for joind.in tags.
+  $vocab = new stdClass();
+  $vocab->name = $t('Joind.in Tags');
+  $vocab->machine_name = 'joindin_tags';
+  $vocab->description = $t('Tags copied across from joind.in');
+  $vocab->module = 'joindin';
+  taxonomy_vocabulary_save($vocab);
+
+  // Add body field to our node types defined in hook_node_info().
+  node_types_rebuild();
+  $types = node_type_get_types();
+  // ..add the body field for each.
+  node_add_body_field($types['joindin_event'], 'Description');
+  node_add_body_field($types['joindin_talk'], 'Description');
+
+  // Set up our other fields on each node type
+  // All links will be similar fields so reuse our definition structures.
+  // First define the name of our link fields for each node type.
+  $link_fields = array(
+    'joindin_event' => array(
+      'joindin_link_event' => 'Event',
+      'joindin_link_event_uri' => 'Joind.in API Event',
+      'joindin_link_event_verbose_uri' => 'Joind.in API Event (verbose)',
+      'joindin_link_event_comments_uri' => 'Joind.in API Comments',
+      'joindin_link_talks_uri' => 'Joind.in API Talks',
+      'joindin_link_event_website_uri' => 'Joind.in Event Website',
+      'joindin_link_event_h_website_uri' => 'Joind.in Humane Website',
+    ),
+    'joindin_talk' => array(
+      'joindin_slides_link' => 'Slides',
+      'joindin_link_talk_uri' => 'Joind.in API Talk',
+      'joindin_link_talk_verbose_uri' => 'Joind.in API Talk (verbose)',
+      'joindin_link_talk_website_uri' => 'Joind.in Website',
+      'joindin_link_talk_comments_uri' => 'Joind.in API Comments',
+      'joindin_link_talk_v_comments_uri' => 'Joind.in API Comments (verbose)',
+      'joindin_link_event_uri' => 'Joind.in API Event',
+    ),
+  );
+
+  foreach ($link_fields as $node_type => $fields) {
+    foreach ($fields as $field_name => $field_label) {
+      // First define our field if not yet in the system..
+      $field = field_info_field($field_name);
+      if (empty($field)) {
+        $field = array(
+          'field_name' => $field_name,
+          'type' => 'link_field',
+          'entity_types' => array(
+            'node',
+          ),
+        );
+        field_create_field($field);
+      }
+
+      // ..then create the instance bound to this node type.
+      $instance = field_info_instance('node', $field_name, $node_type);
+
+      if (empty($instance)) {
+        $instance = array(
+          'label' => $field_label,
+          'field_name' => $field_name,
+          'widget' => array('type' => 'link_field'),
+          'settings' => array(
+            'validate_url' => 1,
+            'url' => 0,
+            'title_maxlength' => 255,
+            'enable_tokens' => 1,
+            'display' => array(
+              'url_cutoff' => 80,
+            ),
+            'attributes' => array(
+              'target' => 'default',
+              'configurable_title' => 0,
+            ),
+          ),
+          'display' => array(
+            'default' => array(
+              'label' => 'above',
+              'type' => 'link_default',
+            ),
+            'teaser' => array(
+              'type' => 'hidden',
+              'label' => 'above',
+            ),
+          ),
+          'entity_type' => 'node',
+          'bundle' => $node_type,
+        );
+        field_create_instance($instance);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ *
+ * Remove all variables and custom node types defined by this module.
+ */
+function joindin_content_types_uninstall() {
+  // Remove all variables.
+  variable_del('joindin_publish_comments');
+
+  // Remove vocab.
+  $vocab = taxonomy_vocabulary_machine_name_load('joindin_tags');
+  taxonomy_vocabulary_delete($vocab->vid);
+}

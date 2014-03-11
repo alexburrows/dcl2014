@@ -1,0 +1,7 @@
+@mixin sponsor-purple() {
+  background-color: #a02484;
+  background-image: -webkit-linear-gradient(bottom, rgba(0,0,0,.21), rgba(255,255,255,.21));
+  background-image: -moz-linear-gradient(bottom, rgba(0,0,0,.21), rgba(255,255,255,.21));
+  background-image: -o-linear-gradient(bottom, rgba(0,0,0,.21), rgba(255,255,255,.21));
+  background-image: linear-gradient(to top, rgba(0,0,0,.21), rgba(255,255,255,.21));
+}

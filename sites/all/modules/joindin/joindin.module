@@ -1,0 +1,57 @@
+<?php
+
+/**
+ * @file
+ * The module file for joind.in integration
+ *
+ * This module allows Drupal to consume Joind.in's API, and provides node types
+ * to represent joind.in's data
+ */
+
+define('JOINDIN_BASE_URL_DEFAULT', 'http://api.joind.in');
+define('JOINDIN_API_VERSION_DEFAULT', 'v2.1');
+
+/**
+ * Implements hook_block_info().
+ *
+ * Defines blocks to hold the joind.in widgets
+ */
+function joindin_block_info() {
+  /*
+   * TODO: implement blocks for the widgets
+   * These may need to be views that take arguments? Look into multiple block
+   * modules - is boxes still used on D7? Are there better alternatives?
+   *
+   * Also need to consider how the code distribution will work for the widgets
+   *  is it more appropriate to copy the code to this module? does the licence
+   *  allow for that? Or should it be a separately downloaded library?
+   */
+  $blocks = array();
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function joindin_node_info() {
+  return array(
+    'joindin_event' => array(
+      'name' => t('Joind.in event'),
+      'base' => 'joindin',
+      'description' => t('This node type represents an event in joind.in.'),
+    ),
+    'joindin_talk' => array(
+      'name' => t('Joind.in talk'),
+      'base' => 'joindin',
+      'description' => t('This node type represents a talk in joind.in.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_form().
+ */
+function joindin_form($node, $form_state) {
+  return node_content_form($node, $form_state);
+}

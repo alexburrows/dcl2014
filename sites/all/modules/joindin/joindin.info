@@ -1,0 +1,23 @@
+name = Joind.in Integration
+description = A module to integrate a Drupal site with joind.in
+package = Joind.In
+core = 7.x
+
+files[] = lib/joindin_factory.class.inc
+files[] = lib/joindin_collection.class.inc
+
+files[] = lib/joindin_retriever.class.inc
+files[] = lib/joindin_resource_retriever_http.class.inc
+files[] = lib/joindin_resource_retriever.interface.inc
+
+files[] = lib/joindin_event.class.inc
+files[] = lib/joindin_event_collection.class.inc
+files[] = lib/joindin_talk.class.inc
+files[] = lib/joindin_talk_collection.class.inc
+files[] = lib/joindin_user.class.inc
+
+files[] = lib/joindin_event_comment.class.inc
+files[] = lib/joindin_event_comment_collection.class.inc
+
+files[] = lib/joindin_talk_comment.class.inc
+files[] = lib/joindin_talk_comment_collection.class.inc

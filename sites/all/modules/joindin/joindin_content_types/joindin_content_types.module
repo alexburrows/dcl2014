@@ -1,0 +1,381 @@
+<?php
+
+/**
+ * @file
+ * The module file for joind.in content types
+ *
+ * This module provides node types to represent joind.in's data
+ */
+
+define('JOINDIN_AUTO_PUBLISH_COMMENTS_DEFAULT', TRUE);
+
+/**
+ * Implements hook_node_info().
+ */
+function joindin_content_types_node_info() {
+  return array(
+    'joindin_event' => array(
+      'name' => t('Joind.in event'),
+      'base' => 'joindin',
+      'description' => t('This node type represents an event in joind.in.'),
+      // 'title_label' => t('Event'),
+    ),
+    'joindin_talk' => array(
+      'name' => t('Joind.in talk'),
+      'base' => 'joindin',
+      'description' => t('This node type represents a talk in joind.in.'),
+      // 'title_label' => t('Talk'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_form().
+ */
+function joindin_content_types_form($node, $form_state) {
+  return node_content_form($node, $form_state);
+}
+
+/**
+ * Fetches the specified event from joind.in and creates a new node for it
+ *
+ * @param $event_id
+ *
+ * @param $get_talks
+ * @param $get_comments
+ */
+function joindin_content_types_create_event_by_id($event_id, $get_comments = FALSE, $get_talks = FALSE) {
+  $event = JoindinFactory::getEvent($event_id);
+  if ($event) {
+    joindin_content_types_create_event($event, $get_comments, $get_talks);
+  }
+}
+
+/**
+ * Creates a node from the given event object
+ *
+ * @param JoindinEvent $event
+ *   event to turn in to a node
+ */
+function joindin_content_types_create_event(JoindinEvent $event, $get_comments = FALSE, $get_talks = FALSE) {
+  $node = new stdClass();
+  $node->title = $event->name;
+  $node->type = 'joindin_event';
+  $node->language = LANGUAGE_NONE;
+  if (property_exists($event, 'description')) {
+    $node->body[$node->language][0]['value'] = $event->description;
+  }
+
+  $field_map = joindin_content_types_event_field_map();
+  foreach ($field_map as $object_field_name => $node_field_name) {
+    _joindin_content_types_set_link_field($event, $node, $object_field_name, $node_field_name);
+  }
+
+  node_object_prepare($node);
+  node_save($node);
+
+  // Todo should the event's host be the author?
+  // note events can have multiple hosts, but we can always add these as a
+  // string with all - an anonymous user is just a string after all
+  // could be "Submitted by Bill Birmingham & Brenda Brigstock (not verified)"
+  // this would actually be the same for talks - talks can have multiple
+  // speakers.
+  // If save of event was successful..
+  if ($node->nid) {
+    // Todo..add tags
+    // ..add comments specific to this event..
+    if ($get_comments) {
+      joindin_content_types_create_event_comments($event, $node);
+    }
+
+    if ($get_talks) {
+      joindin_content_types_create_event_talks($event, $get_comments);
+    }
+  }
+  if ($node->nid) {
+    return $node;
+  }
+  else {
+/*    $variables = array(
+      '%event_id' => $ji_event_id,
+    );
+    watchdog('joindin', "Could not save event node for event %ji_event_id", $variables); */
+    return NULL;
+  }
+}
+
+/**
+ * Sets the field on the node if corresponding field is on the joindin object.
+ *
+ * @param object $object
+ *   object retrieved from the joindin response
+ * @param object $node
+ *   node on which to set the field
+ * @param string $object_field_name
+ *   field name on the joindin response
+ * @param string $node_field_name
+ *   field name on the node
+ */
+function _joindin_content_types_set_link_field($object, $node, $object_field_name, $node_field_name) {
+  if (is_object($object)) {
+    if (property_exists($object, $object_field_name)) {
+      $node->$node_field_name = array(
+        LANGUAGE_NONE => array(
+          0 => array(
+            'url' => $object->$object_field_name,
+          ),
+        ),
+      );
+    }
+  }
+  elseif (is_array($object)) {
+    if (array_key_exists($object_field_name, $object)) {
+      $node->$node_field_name = array(
+        LANGUAGE_NONE => array(
+          0 => array(
+            'url' => $object[$object_field_name],
+          ),
+        ),
+      );
+    }
+  }
+}
+
+/**
+ *
+ *
+ * @param $event_node object Drupal node to which to add comments
+ * @param $ji_event_id int ID of the event in joind.in for which to retrieve comments
+ */
+function joindin_content_types_create_event_comments(JoindinEvent $event, $event_node) {
+  //  first get comments from the api..
+  $comments = $event->getComments();
+  if ($comments) {
+    // ..then for each retrieved..
+    foreach ($comments as $comment) {
+      // add it to the event
+      joindin_content_types_create_event_comment($event_node, $comment);
+    }
+  }
+}
+
+/**
+ * Saves the joindin comment response against the given event node.
+ *
+ * @param object $node
+ *   node to which to add comment
+ * @param array $comment
+ *   with ji comment response
+ */
+function joindin_content_types_create_event_comment($node, JoindinEventComment $comment) {
+  $comment_to_save = new stdClass();
+  $comment_to_save->nid = $node->nid;
+  $comment_to_save->cid = 0;
+  // joind.in doesn't thread comments so parent id will always be 0.
+  $comment_to_save->pid = 0;
+  $publish = variable_get('joindin_auto_publish_comments', JOINDIN_AUTO_PUBLISH_COMMENTS_DEFAULT);
+  if ($publish) {
+    $comment_to_save->status = COMMENT_PUBLISHED;
+  }
+  $comment_to_save->language = LANGUAGE_NONE;
+  $comment_to_save->comment_body[$comment_to_save->language][0]['value'] = $comment->comment;
+  $comment_to_save->name = $comment->user_display_name;
+  $comment_to_save->date = $comment->created_date;
+  comment_submit($comment_to_save);
+  comment_save($comment_to_save);
+}
+
+/**
+ * @param JoindinEvent $event
+ */
+function joindin_content_types_create_event_talks(JoindinEvent $event, $get_comments = FALSE) {
+  $talks = $event->getTalks();
+  foreach($talks as $talk) {
+    joindin_content_types_create_talk($talk, $get_comments);
+  }
+}
+
+/**
+ * Creates a drupal nodes for all the talks at a given joindin event.
+ *
+ * @param int $ji_event_id
+ *   ID of the event in joind.in
+ */
+function joindin_content_types_create_talk(JoindinTalk $talk, $get_comments = FALSE) {
+  // ..populate and save a talk node.
+  $node = new stdClass();
+  $node->title = $talk->talk_title;
+  $node->type = 'joindin_talk';
+  $node->language = LANGUAGE_NONE;
+  $node->body[$node->language][0]['value'] = $talk->talk_description;
+
+  $field_map = joindin_content_types_talk_field_map();
+  foreach ($field_map as $object_field_name => $node_field_name) {
+    _joindin_content_types_set_link_field($talk, $node, $object_field_name, $node_field_name);
+  }
+
+  node_object_prepare($node);
+  node_save($node);
+  // If we saved the talk successfully and we want to get the comments..
+  if ($node->nid && $get_comments) {
+    //..get the comments and save them
+    $comments = $talk->getComments();
+    foreach ($comments as $comment) {
+      joindin_content_types_create_talk_comment($node, $comment);
+    }
+  }
+}
+
+/**
+ * Saves the joindin comment response against the given event node.
+ *
+ * @param object $node
+ *   node to which to add comment
+ * @param array $comment
+ *   with ji comment response
+ */
+function joindin_content_types_create_talk_comment($node, JoindinTalkComment $comment) {
+  $comment_to_save = new stdClass();
+  $comment_to_save->nid = $node->nid;
+  $comment_to_save->cid = 0;
+  // joind.in doesn't thread comments so parent id will always be 0.
+  $comment_to_save->pid = 0;
+  $publish = variable_get('joindin_auto_publish_comments', JOINDIN_AUTO_PUBLISH_COMMENTS_DEFAULT);
+  if ($publish) {
+    $comment_to_save->status = COMMENT_PUBLISHED;
+  }
+  $comment_to_save->language = LANGUAGE_NONE;
+  $comment_to_save->comment_body[$comment_to_save->language][0]['value'] = $comment->comment;
+  $comment_to_save->name = $comment->user_display_name;
+  $comment_to_save->date = $comment->created_date;
+  comment_submit($comment_to_save);
+  comment_save($comment_to_save);
+}
+
+/**
+ * Provides a map of JI response fields to Drupal talk node fields.
+ *
+ * @return array
+ *   map of JI response fields to node fields.
+ */
+function joindin_content_types_talk_field_map() {
+  return array(
+    'slides_link' => 'joindin_slides_link',
+    'uri' => 'joindin_link_talk_uri',
+    'verbose_uri' => 'joindin_link_talk_verbose_uri',
+    'website_uri' => 'joindin_link_talk_website_uri',
+    'comments_uri' => 'joindin_link_talk_comments_uri',
+    'verbose_comments_uri' => 'joindin_link_talk_v_comments_uri',
+    'event_uri' => 'joindin_link_event_uri',
+  );
+}
+
+/**
+ * Provides a map of JI response fields to Drupal event node fields.
+ *
+ * @return array
+ *   map of JI response fields to node fields.
+ */
+function joindin_content_types_event_field_map() {
+  return array(
+    'href' => 'joindin_link_event',
+    'uri' => 'joindin_link_event_uri',
+    'verbose_uri' => 'joindin_link_event_verbose_uri',
+    'comments_uri' => 'joindin_link_event_comments_uri',
+    'talk_uri' => 'joindin_link_talks_uri',
+    'website_uri' => 'joindin_link_event_website_uri',
+    'humane_website_uri' => 'joindin_link_event_h_website_uri',
+  );
+}
+
+/**
+ * Implements hook_comment_publish().
+ *
+ * Post the comment back to joind.in if it's been made on an appropriate content
+ * type.
+ * This is done during page load rather than queued as the user may have to
+ * reauthenticate with joind.in.
+ *
+ * TODO what about if comments are made on nodes that aren't published?
+ *
+ * TODO check if joind.in allows more than one comment per user.
+ */
+function joindin_content_types_comment_publish($comment) {
+//  dpm($comment);
+
+  /*
+   * dpm($comment) gives us something like this:
+   *
+... (Object) stdClass
+
+    nid (String, 3 characters ) 336
+    pid (Integer) 0
+    name (String, 5 characters ) admin
+    mail (String, 0 characters )
+    homepage (String, 0 characters )
+    subject (String, 6 characters ) asdasd
+    comment (String, 0 characters )
+    cid (String, 4 characters ) 2662
+    language (String, 3 characters ) und
+    uid (String, 1 characters ) 1
+    node_type (String, 25 characters ) comment_node_joindin_talk
+    date (String, 3 characters ) now
+    status (Integer) 1
+    is_anonymous (Boolean) FALSE
+    submit (String, 4 characters ) Save
+    preview (String, 7 characters ) Preview
+    form_build_id (String, 48 characters ) form-KOtGnNqwNwwDI8agnSb2Ee0SntQV7telJUJHBTHvIq4
+    form_token (String, 43 characters ) 6c_J-fqFQS3GvD1JL23Bzn0DzJ4M9Lt01bXNwuR__OU
+    form_id (String, 30 characters ) comment_node_joindin_talk_form
+    op (String, 4 characters ) Save
+    comment_body (Array, 1 element)
+    created (Integer) 1385891679
+    changed (Integer) 1385891679
+    thread (String, 3 characters ) 0d/
+    hostname (String, 12 characters ) 192.168.56.1
+   */
+  // TODO better name and default
+  if (!variable_get('joindin_publish_comments', TRUE)) {
+    return FALSE;
+  }
+  // Check whether the comment was made on a type we should push back to
+  // joind.in.
+  $node = node_load($comment->nid);
+//  dpm($node);
+  if (!joindin_content_types_check_node_type($node->type)) {
+    return FALSE;
+  }
+
+  // Get the URL to which to post the comment:
+  $link_field_items = field_get_items('node', $node, 'joindin_link_talk_comments_uri');
+//  dpm($link_field_items);
+  if ($link_field_items === FALSE || count($link_field_items) != 1) {
+    // TODO we should watchdog this - because it means this content was either
+    // 1) manually created and not resynced with JI yet
+    // 2) sent duff information from JI
+    // 3) had its comments uri field manually edited
+    return FALSE;
+  }
+  $ji_comments_uri = $link_field_items[0]['url'];
+
+  // construct JSON representation of object and post it back to the given URL.
+  // TODO what about https? Is that not used? $ji_comments_uri from live JI site
+  // are not.
+}
+
+/**
+ * Checks whether the node type represents data replicated from joind.in.
+ *
+ * @param $node_type string Machine name of the node type being checked.
+ * @return bool TRUE if
+ */
+function joindin_content_types_check_node_type($node_type) {
+  // This may be retrieved from a variable when the module is extended to allow
+  // adding JI support to existing content types.
+  $joindin_node_types = array(
+    'joindin_event',
+    'joindin_talk',
+  );
+
+  return (in_array($node_type, $joindin_node_types));
+}

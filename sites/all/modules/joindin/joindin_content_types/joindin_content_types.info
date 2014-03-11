@@ -1,0 +1,8 @@
+name = Joind.in Content Types
+description = Defines content types and taxonomy to represent locally cached joind.in events and talks
+package = Joind.In
+core = 7.x
+dependencies[] = comment
+dependencies[] = link
+dependencies[] = taxonomy
+dependencies[] = joindin
